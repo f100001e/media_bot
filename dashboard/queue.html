@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Approval Queue</h1>
+<form method="post" action="/approve">
+    {% for item in items %}
+    <div style="border:1px solid #ccc; margin:1rem 0; padding:1rem; display:flex; gap:1rem;">
+        <!-- Checkbox and platform selector on the left -->
+        <div>
+            <input type="radio" name="draft_id" value="{{ item.draft.id }}" required>
+            <select name="platform">
+                <option value="facebook">Facebook</option>
+                <option value="reddit">Reddit</option>
+                <option value="instagram">Instagram</option>
+            </select>
+            <br>
+            <input type="text" name="target" placeholder="group_id / subreddit / comment_id">
+        </div>
+        
+        <!-- Rich preview card (if OG data exists) -->
+        <div style="flex:2; border-left:1px solid #eee; padding-left:1rem;">
+            {% if item.og_image %}
+                <img src="{{ item.og_image }}" style="max-width:120px; max-height:120px; float:right; margin-left:1rem;">
+            {% endif %}
+            <strong>{{ item.og_title or item.draft.draft_text[:80] }}</strong><br>
+            <small>{{ item.og_site_name or item.url }}</small>
+            <p>{{ item.og_description or "" }}</p>
+            <a href="{{ item.url }}" target="_blank">Original article</a>
+        </div>
+        
+        <!-- Draft text (editable) -->
+        <div style="flex:2">
+            <textarea name="edit_text_{{ item.draft.id }}" rows="3" style="width:100%">{{ item.draft.draft_text }}</textarea>
+            <br>
+            <input type="text" name="link_{{ item.draft.id }}" value="{{ item.url }}" style="width:100%">
+            <small>Link (edit if needed)</small>
+        </div>
+    </div>
+    {% endfor %}
+    <button type="submit">Approve Selected</button>
+</form>
+{% endblock %}

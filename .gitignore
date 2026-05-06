@@ -1,0 +1,23 @@
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Python cache
+__pycache__/
+*.py[cod]
+
+# Database files
+*.db
+*.sqlite*
+
+# Environment files (ignore real ones, keep .env.example)
+.env
+.env.local
+
+# Data files
+*.json
+*.csv
+
+# Settings
+.vscode/
