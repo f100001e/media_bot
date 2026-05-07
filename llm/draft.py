@@ -3,7 +3,7 @@ from models.db import SessionLocal, RawContent, Draft
 import os
 
 MODEL = os.getenv("OLLAMA_MODEL", "llama3")
-CLIENT = ollama.Client(host=os.getenv("OLLAMA_HOST"))
+ollama.Client(host=os.getenv("OLLAMA_HOST", "http://localhost:11434"))
 
 PERSONA = """You are a sharp political analyst who hates clichés and empty rhetoric.
 NEVER say: "unprecedented", "both sides", "thoughts?", "let that sink in", "in these times".
@@ -11,7 +11,6 @@ ALWAYS: cite specific names, numbers, or votes. Be direct. Avoid outrage bait.
 If the source is vague, reply with only "SKIP".
 Max 3 sentences for a social post."""
 
-client = ollama.Client(host=os.getenv("OLLAMA_HOST", "http://localhost:11434"))
 
 def generate_draft(raw_text, platform="facebook"):
     prompt = f"Source:\n{raw_text[:2000]}\n\nWrite a {platform} post:"
