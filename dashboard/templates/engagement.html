@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<h1>Engagement</h1>
+
+<table>
+    <thead>
+        <tr>
+            <th>Post</th>
+            <th>Platform</th>
+            <th>Views</th>
+            <th>Interactions</th>
+            <th>Engagement Rate</th>
+        </tr>
+    </thead>
+
+    <tbody>
+        {% for item in items %}
+        <tr>
+            <td>{{ item.title }}</td>
+            <td>{{ item.platform }}</td>
+            <td>{{ item.views }}</td>
+            <td>{{ item.interactions }}</td>
+            <td>{{ "%.2f"|format(item.engagement_rate) }}%</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+{% if not items %}
+<p>No engagement data available yet.</p>
+{% endif %}
+
+{% endblock %}

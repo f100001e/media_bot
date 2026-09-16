@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<h1>Failed</h1>
+
+{% if items %}
+
+<table style="width:100%; border-collapse:collapse;">
+    <thead>
+        <tr>
+            <th>Draft</th>
+            <th>Platform</th>
+            <th>Action</th>
+            <th>Target</th>
+            <th>Draft Text</th>
+            <th>Created</th>
+        </tr>
+    </thead>
+
+    <tbody>
+        {% for item in items %}
+        <tr>
+            <td>{{ item.id }}</td>
+            <td>{{ item.platform | upper }}</td>
+            <td>{{ item.action }}</td>
+            <td>{{ item.target or "—" }}</td>
+            <td>{{ item.draft_text[:120] }}</td>
+            <td>{{ item.created_at }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+{% else %}
+
+<p>No failed posts.</p>
+
+{% endif %}
+
+{% endblock %}

@@ -1,0 +1,148 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<h1>Approval Queue</h1>
+
+<form method="post" action="/approve">
+
+    {% for item in items %}
+
+    <div style="
+        border:1px solid #ccc;
+        margin:1rem 0;
+        padding:1rem;
+        display:flex;
+        gap:1rem;
+    ">
+
+        <!-- Approval + destination -->
+        <div style="min-width:160px;">
+
+            <input
+                type="checkbox"
+                name="draft_id"
+                value="{{ item.draft.id }}"
+            >
+
+            <strong>
+                {{ item.draft.platform | upper }}
+            </strong>
+
+            <br>
+
+            <small>
+                {{ item.draft.action }}
+            </small>
+
+            <br>
+
+            {% if item.draft.target %}
+                <small>
+                    Target: {{ item.draft.target }}
+                </small>
+            {% endif %}
+
+            <br>
+
+            <small>
+                Status: {{ item.draft.status }}
+            </small>
+
+        </div>
+
+
+        <!-- Article preview -->
+        <div style="
+            flex:2;
+            border-left:1px solid #eee;
+            padding-left:1rem;
+        ">
+
+            {% if item.og_image %}
+
+                <img
+                    src="{{ item.og_image }}"
+                    style="
+                        max-width:120px;
+                        max-height:120px;
+                        float:right;
+                        margin-left:1rem;
+                    "
+                >
+
+            {% endif %}
+
+            <strong>
+                {{ item.og_title or item.draft.draft_text[:80] }}
+            </strong>
+
+            <br>
+
+            <small>
+                {{ item.og_site_name or item.url }}
+            </small>
+
+            <p>
+                {{ item.og_description or "" }}
+            </p>
+
+            <a
+                href="{{ item.url }}"
+                target="_blank"
+                rel="noopener noreferrer"
+            >
+                Original article
+            </a>
+
+        </div>
+
+
+        <!-- Editable draft -->
+        <div style="flex:2;">
+
+            <textarea
+                name="edit_text_{{ item.draft.id }}"
+                rows="5"
+                style="width:100%;"
+            >{{ item.draft.draft_text }}</textarea>
+
+            <br>
+
+            {% if item.draft.action == "publish_post" %}
+
+                <input
+                    type="text"
+                    name="link_{{ item.draft.id }}"
+                    value="{{ item.url }}"
+                    style="width:100%;"
+                >
+
+                <small>
+                    Article link
+                </small>
+
+            {% endif %}
+
+        </div>
+
+    </div>
+
+    {% endfor %}
+
+
+    {% if items %}
+
+        <button type="submit">
+            Approve Selected
+        </button>
+
+    {% else %}
+
+        <p>No drafts awaiting approval.</p>
+
+    {% endif %}
+
+</form>
+
+{% endblock %}

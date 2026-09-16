@@ -3,7 +3,7 @@ from models.db import SessionLocal, RawContent, Draft
 import os
 
 MODEL = os.getenv("OLLAMA_MODEL", "llama3")
-ollama.Client(host=os.getenv("OLLAMA_HOST", "http://localhost:11434"))
+client = ollama.Client(host=os.getenv("OLLAMA_HOST", "http://localhost:11434"))
 
 PERSONA = """You are a sharp political analyst who hates clichés and empty rhetoric.
 NEVER say: "unprecedented", "both sides", "thoughts?", "let that sink in", "in these times".

@@ -2,7 +2,7 @@ import feedparser
 import praw
 import requests
 from models.db import SessionLocal, RawContent
-from opengraph import OpenGraph
+from opengraph_py3 import OpenGraph
 
 def fetch_rss(feed_urls):
     for url in feed_urls:
@@ -46,16 +46,22 @@ def fetch_opengraph_metadata(url, timeout=5):
   
 def save_raw_items():
     db = SessionLocal()
-    rss_sources = ["https://www.politico.com/rss/politics.xml"]
+    rss_sources = [
+    "https://feeds.npr.org/1014/rss.xml",
+    "https://kff.org/feed/",                          # Kaiser Family Foundation - health policy
+    "https://www.healthaffairs.org/rss/current.xml",  # Health Affairs
+    "https://insurancenewsnet.com/rss",               # Insurance News Net
+    "https://www.insurance.com/rss.xml",              # Insurance.com
+]
     for item in fetch_rss(rss_sources):
         og = fetch_opengraph_metadata(item["url"])
         raw = RawContent(**item, **og, processed=0)
         db.add(raw)
     
-    for item in fetch_reddit(["politics", "PoliticalDiscussion"]):
-        og = fetch_opengraph_metadata(item["url"])
-        raw = RawContent(**item, **og, processed=0)
-        db.add(raw)
+    # for item in fetch_reddit(["politics", "PoliticalDiscussion"]):
+    #     og = fetch_opengraph_metadata(item["url"])
+    #     raw = RawContent(**item, **og, processed=0)
+    #     db.add(raw)
     
     db.commit()
     db.close()

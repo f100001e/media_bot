@@ -1,8 +1,21 @@
 <!DOCTYPE html>
 <html>
-<head><title>Political Bot Dashboard</title></head>
+<head>
+    <title>PressPassLA Publisher</title>
+</head>
+
 <body>
-    <nav><a href="/queue">Queue</a></nav>
+
+    <nav>
+        <a href="/queue">Approval Queue</a> |
+        <a href="/published">Published</a> |
+        <a href="/failed">Failed</a> |
+        <a href="/engagement">Engagement</a>
+    </nav>
+
+    <hr>
+
     {% block content %}{% endblock %}
+
 </body>
 </html>

@@ -18,6 +18,55 @@ def get_db():
     finally:
         db.close()
 
+@app.get("/engagement")
+def engagement(request: Request):
+    return templates.TemplateResponse(
+        "engagement.html",
+        {
+            "request": request,
+            "items": []
+        }
+    )
+
+@app.get("/published")
+def published(
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    items = (
+        db.query(Published)
+        .order_by(Published.published_at.desc())
+        .all()
+    )
+
+    return templates.TemplateResponse(
+        "published.html",
+        {
+            "request": request,
+            "items": items
+        }
+    )
+
+@app.get("/failed")
+def failed(
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    items = (
+        db.query(Draft)
+        .filter(Draft.status == "failed")
+        .order_by(Draft.created_at.desc())
+        .all()
+    )
+
+    return templates.TemplateResponse(
+        "failed.html",
+        {
+            "request": request,
+            "items": items
+        }
+    )
+
 @app.get("/meta/callback")
 async def meta_callback(request: Request, code: str = None, error: str = None):
     if error:
