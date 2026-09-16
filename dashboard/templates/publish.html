@@ -23,7 +23,15 @@
             <td>{{ item.draft_id }}</td>
             <td>{{ item.platform | upper }}</td>
             <td>{{ item.target or "—" }}</td>
-            <td>{{ item.post_id or "—" }}</td>
+            <td>
+                {% if item.post_url %}
+                    <a href="{{ item.post_url }}" target="_blank" rel="noopener noreferrer">
+                        {{ item.post_id or "View post" }}
+                    </a>
+                {% else %}
+                    {{ item.post_id or "—" }}
+                {% endif %}
+            </td>
             <td>{{ item.published_at }}</td>
         </tr>
         {% endfor %}

@@ -1,4 +1,7 @@
-from sqlalchemy import (
+# SQLAlchemy is an optional runtime dependency; keep static analyzers from
+# reporting a missing import when the project's virtual environment is not
+# selected.
+from sqlalchemy import (  # pyright: ignore[reportMissingImports]
     create_engine,
     Column,
     Integer,
@@ -7,13 +10,18 @@ from sqlalchemy import (
     DateTime,
     JSON
 )
-from sqlalchemy.orm import sessionmaker, declarative_base
-from sqlalchemy.orm import sessionmaker
-from datetime import datetime
+from sqlalchemy.orm import sessionmaker, declarative_base  # pyright: ignore[reportMissingImports]
+from datetime import datetime, timezone
 from pathlib import Path
-from dotenv import load_dotenv
+from dotenv import load_dotenv  # pyright: ignore[reportMissingImports]
 import os
 
+def utc_now():
+    return datetime.now(timezone.utc)
+
+created_at = Column(DateTime(timezone=True), default=utc_now)
+approved_at = Column(DateTime(timezone=True))
+published_at = Column(DateTime(timezone=True), default=utc_now)
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -99,11 +107,15 @@ class Published(Base):
         nullable=True
     )
 
+    post_url = Column(
+        String,
+        nullable=True
+    )
+
     published_at = Column(
         DateTime,
         default=datetime.utcnow
     )
-
 
 Base.metadata.create_all(bind=engine)
 

@@ -33,17 +33,29 @@ def published(
     request: Request,
     db: Session = Depends(get_db)
 ):
-    items = (
+    results = (
         db.query(Published)
         .order_by(Published.published_at.desc())
         .all()
     )
 
+    published_items = []
+
+    for item in results:
+        published_items.append({
+            "draft_id": item.draft_id,
+            "platform": item.platform,
+            "target": item.target,
+            "post_id": item.post_id,
+            "post_url": getattr(item, "post_url", None),
+            "published_at": item.published_at,
+        })
+
     return templates.TemplateResponse(
         "published.html",
         {
             "request": request,
-            "items": items
+            "items": published_items
         }
     )
 

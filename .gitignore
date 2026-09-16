@@ -23,3 +23,10 @@ __pycache__/
 .vscode/
 
 runsequence.txt
+
+prompts/
+├── base.md
+├── scoring.md
+├── facebook.md
+├── instagram.md
+└── reddit.md
