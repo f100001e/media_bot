@@ -19,9 +19,19 @@ import os
 def utc_now():
     return datetime.now(timezone.utc)
 
-created_at = Column(DateTime(timezone=True), default=utc_now)
-approved_at = Column(DateTime(timezone=True))
-published_at = Column(DateTime(timezone=True), default=utc_now)
+created_at = Column(
+    DateTime(timezone=True),
+    default=utc_now
+)
+
+approved_at = Column(
+    DateTime(timezone=True),
+    nullable=True
+)
+published_at = Column(
+    DateTime(timezone=True),
+    default=utc_now
+)
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
