@@ -31,7 +31,7 @@ def engagement(request: Request):
 @app.get("/published")
 def published(
     request: Request,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     results = (
         db.query(Published)
@@ -44,10 +44,10 @@ def published(
     for item in results:
         published_items.append({
             "draft_id": item.draft_id,
-            "platform": item.platform,
+            "platform": item.platform or "unknown",
             "target": item.target,
             "post_id": item.post_id,
-            "post_url": getattr(item, "post_url", None),
+            "post_url": item.post_url,
             "published_at": item.published_at,
         })
 
@@ -55,8 +55,8 @@ def published(
         "published.html",
         {
             "request": request,
-            "items": published_items
-        }
+            "items": published_items,
+        },
     )
 
 @app.get("/failed")
@@ -112,35 +112,144 @@ def approval_queue(request: Request, db: Session = Depends(get_db)):
 @app.post("/approve")
 async def approve_draft(
     request: Request,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     form = await request.form()
+
     draft_ids = form.getlist("draft_id")
-    platform = form.get("platform")
-    target = form.get("target")
+
+    selected_platform = form.get("platform")
+    selected_target = form.get("target")
+
+    queued_count = 0
 
     for draft_id in draft_ids:
         draft_id = int(draft_id)
-        edited_text = form.get(f"edit_text_{draft_id}")
-        link = form.get(f"link_{draft_id}")
-        
-        draft = db.query(Draft).filter(Draft.id == draft_id).first()
+
+        draft = (
+            db.query(Draft)
+            .filter(Draft.id == draft_id)
+            .first()
+        )
+
         if not draft:
             continue
-        
-        final_text = edited_text if edited_text else draft.draft_text
+
+        platform = selected_platform or draft.platform
+        target = selected_target or draft.target
+
+        if not platform:
+            raise ValueError(
+                f"Draft {draft_id} has no platform configured"
+            )
+
+        edited_text = form.get(f"edit_text_{draft_id}")
+        link = form.get(f"link_{draft_id}")
+
+        raw = (
+            db.query(RawContent)
+            .filter(RawContent.id == draft.content_id)
+            .first()
+        )
+
+        image_url = (
+            form.get(f"image_url_{draft_id}")
+            or (raw.og_image if raw else None)
+        )
+
+        final_text = (
+            edited_text
+            if edited_text
+            else draft.draft_text
+        )
+
+        # ---------------------------------------------
+        # Build platform-specific publish parameters
+        # ---------------------------------------------
+
+        if platform == "facebook":
+            params = {
+                "message": final_text,
+                "target_id": target,
+                "link": link or None,
+            }
+
+        elif platform == "reddit":
+            title = (
+                final_text[:100]
+                if len(final_text) > 100
+                else final_text
+            )
+
+            params = {
+                "title": title,
+                "selftext": final_text,
+                "subreddit": target,
+            }
+
+        elif platform == "instagram":
+            if not image_url:
+                raise ValueError(
+                    f"Draft {draft_id} has no image URL "
+                    "and cannot be published to Instagram"
+                )
+
+            params = {
+                "action": "publish_post",
+                "image_url": image_url,
+                "caption": final_text,
+                "ig_user_id": target or None,
+            }
+
+        else:
+            raise ValueError(
+                f"Unsupported platform: {platform}"
+            )
+
         draft.status = "approved"
         draft.approved_at = datetime.utcnow()
-        db.commit()
-        
-        if platform == "facebook":
-            params = {"message": final_text, "target_id": target, "link": link if link else None}
-        elif platform == "reddit":
-            title = final_text[:100] if len(final_text) > 100 else final_text
-            params = {"title": title, "selftext": final_text, "subreddit": target}
-        elif platform == "instagram":
-            params = {"comment_id": target, "message": final_text}
-        
-        enqueue_publish(draft_id, platform, params)
 
-    return {"status": "queued", "count": len(draft_ids)}
+        db.commit()
+
+        enqueue_publish(
+            draft_id,
+            platform,
+            params,
+        )
+
+        queued_count += 1
+
+    return {
+        "status": "queued",
+        "count": queued_count,
+    }
+            
+@app.post("/delete-drafts")
+async def delete_drafts(
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    form = await request.form()
+    draft_ids = form.getlist("draft_id")
+
+    deleted_count = 0
+
+    for draft_id in draft_ids:
+        draft = (
+            db.query(Draft)
+            .filter(Draft.id == int(draft_id))
+            .first()
+        )
+
+        if not draft:
+            continue
+
+        db.delete(draft)
+        deleted_count += 1
+
+    db.commit()
+
+    return {
+        "status": "deleted",
+        "count": deleted_count,
+    }

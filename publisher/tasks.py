@@ -3,8 +3,13 @@ import os
 from redis import Redis
 from rq import Queue, Retry
 
-from models.db import SessionLocal, Draft, Published
-
+from models.db import (
+    SessionLocal,
+    Draft,
+    Published,
+    RawContent,
+)
+from publish.wordpress import push_instagram_item
 from publish.facebook import publish_to_facebook
 from publish.instagram import (
     publish_to_instagram,
@@ -50,27 +55,29 @@ def publish_job(draft_id, platform, params):
         draft.status = "publishing"
         db.commit()
 
-        # Determine action.
-        #
-        # Instagram comment replies can be inferred from comment_id,
-        # which also keeps older queued jobs from exploding if they
-        # don't explicitly contain action="reply_comment".
+        # ---------------------------------------------
+        # Determine action
+        # ---------------------------------------------
+
         if platform == "instagram":
             if params.get("action"):
                 action = params["action"]
+
             elif params.get("comment_id"):
                 action = "reply_comment"
+
             else:
                 action = "publish_post"
+
         else:
             action = params.get(
                 "action",
                 "publish_post",
             )
 
-        # -------------------------------------------------
+        # ---------------------------------------------
         # Facebook
-        # -------------------------------------------------
+        # ---------------------------------------------
 
         if platform == "facebook":
             result = publish_to_facebook(
@@ -79,11 +86,12 @@ def publish_job(draft_id, platform, params):
                 link=params.get("link"),
             )
 
-        # -------------------------------------------------
+        # ---------------------------------------------
         # Reddit
-        # -------------------------------------------------
+        # ---------------------------------------------
 
         elif platform == "reddit":
+
             if not REDDIT_ENABLED:
                 raise RuntimeError(
                     "Reddit publishing is disabled"
@@ -95,29 +103,44 @@ def publish_job(draft_id, platform, params):
                 subreddit=params.get("subreddit"),
             )
 
-        # -------------------------------------------------
+        # ---------------------------------------------
         # Instagram
-        # -------------------------------------------------
+        # ---------------------------------------------
 
         elif platform == "instagram":
 
             if action == "publish_post":
+
                 result = publish_to_instagram(
-                    image_url=params.get("image_url"),
-                    caption=params.get("caption"),
-                    landing_url=params.get("landing_url"),
-                    ig_user_id=params.get("ig_user_id"),
+                    image_url=params.get(
+                        "image_url"
+                    ),
+                    caption=params.get(
+                        "caption"
+                    ),
+                    landing_url=params.get(
+                        "landing_url"
+                    ),
+                    ig_user_id=params.get(
+                        "ig_user_id"
+                    ),
                 )
 
             elif action == "reply_comment":
+
                 result = reply_to_instagram_comment(
-                    comment_id=params.get("comment_id"),
-                    message=params.get("message"),
+                    comment_id=params.get(
+                        "comment_id"
+                    ),
+                    message=params.get(
+                        "message"
+                    ),
                 )
 
             else:
                 raise ValueError(
-                    f"Unknown Instagram action: {action}"
+                    "Unknown Instagram action: "
+                    f"{action}"
                 )
 
         else:
@@ -125,9 +148,9 @@ def publish_job(draft_id, platform, params):
                 f"Unknown platform: {platform}"
             )
 
-        # -------------------------------------------------
-        # Normalize publish result
-        # -------------------------------------------------
+        # ---------------------------------------------
+        # Normalize result
+        # ---------------------------------------------
 
         post_id = None
         post_url = None
@@ -135,6 +158,7 @@ def publish_job(draft_id, platform, params):
         target = None
 
         if isinstance(result, dict):
+
             post_id = (
                 result.get("post_id")
                 or result.get("id")
@@ -156,24 +180,34 @@ def publish_job(draft_id, platform, params):
                 or result.get("comment_id")
             )
 
-        # Fall back to original parameters if publisher
-        # did not return a useful target.
+        # ---------------------------------------------
+        # Target fallback
+        # ---------------------------------------------
+
         if not target:
 
             if platform == "facebook":
-                target = params.get("target_id")
+                target = params.get(
+                    "target_id"
+                )
 
             elif platform == "instagram":
 
                 if action == "reply_comment":
-                    target = params.get("comment_id")
+                    target = params.get(
+                        "comment_id"
+                    )
+
                 else:
-                    target = params.get("ig_user_id")
+                    target = params.get(
+                        "ig_user_id"
+                    )
 
             elif platform == "reddit":
-                target = params.get("subreddit")
+                target = params.get(
+                    "subreddit"
+                )
 
-        # Final fallback to whatever was stored on Draft.
         if not target:
             target = getattr(
                 draft,
@@ -181,9 +215,9 @@ def publish_job(draft_id, platform, params):
                 None,
             )
 
-        # -------------------------------------------------
+        # ---------------------------------------------
         # Record successful publication
-        # -------------------------------------------------
+        # ---------------------------------------------
 
         published = Published(
             draft_id=draft.id,
@@ -200,13 +234,67 @@ def publish_job(draft_id, platform, params):
 
         db.commit()
 
+        # ---------------------------------------------
+        # Push successful Instagram post to WordPress
+        #
+        # IMPORTANT:
+        # WordPress failure must NOT cause Instagram
+        # to publish again on an RQ retry.
+        # ---------------------------------------------
+
+        if (
+            platform == "instagram"
+            and action == "publish_post"
+        ):
+            raw = (
+                db.query(RawContent)
+                .filter(
+                    RawContent.id
+                    == draft.content_id
+                )
+                .first()
+            )
+
+            if raw:
+                try:
+                    wp_result = push_instagram_item(
+                        title=(
+                            raw.og_title
+                            or raw.title
+                        ),
+                        article_url=raw.url,
+                        image_url=params.get(
+                            "image_url"
+                        ),
+                        caption=params.get(
+                            "caption"
+                        ),
+                        instagram_url=post_url,
+                        published_at=(
+                            published
+                            .published_at
+                            .isoformat()
+                            if published.published_at
+                            else None
+                        ),
+                    )
+
+                    print(
+                        "✓ WordPress landing-page "
+                        f"push succeeded: {wp_result}"
+                    )
+
+                except Exception as exc:
+                    print(
+                        "✗ WordPress landing-page "
+                        f"push failed: {exc}"
+                    )
+
         return result
 
     except Exception:
         db.rollback()
 
-        # If we found the draft, mark it failed.
-        # Re-query so we're working with fresh DB state.
         failed_draft = (
             db.query(Draft)
             .filter(Draft.id == draft_id)
@@ -217,8 +305,6 @@ def publish_job(draft_id, platform, params):
             failed_draft.status = "failed"
             db.commit()
 
-        # Re-raise so RQ registers the failure and
-        # Retry(max=3, interval=60) actually works.
         raise
 
     finally:

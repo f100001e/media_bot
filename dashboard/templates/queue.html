@@ -63,6 +63,7 @@
 
                 <img
                     src="{{ item.og_image }}"
+                    alt="Article preview"
                     style="
                         max-width:120px;
                         max-height:120px;
@@ -70,6 +71,14 @@
                         margin-left:1rem;
                     "
                 >
+
+            {% else %}
+
+                <small>
+                    No preview image available
+                </small>
+
+                <br>
 
             {% endif %}
 
@@ -122,6 +131,12 @@
                     Article link
                 </small>
 
+                <input
+                    type="hidden"
+                    name="image_url_{{ item.draft.id }}"
+                    value="{{ item.og_image or '' }}"
+                >
+
             {% endif %}
 
         </div>
@@ -133,8 +148,20 @@
 
     {% if items %}
 
-        <button type="submit">
+        <button
+            type="submit"
+            formaction="/approve"
+            formmethod="post"
+        >
             Approve Selected
+        </button>
+
+        <button
+            type="submit"
+            formaction="/delete-drafts"
+            formmethod="post"
+        >
+            Delete Selected
         </button>
 
     {% else %}

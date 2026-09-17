@@ -1,26 +1,29 @@
-import os
-
 from redis import Redis
-from rq import Worker, Queue
+from rq import Queue, SimpleWorker
+from rq.timeouts import TimerDeathPenalty
+
+from publisher.tasks import REDIS_HOST, REDIS_PORT
 
 
-REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
-REDIS_PORT = int(os.getenv("REDIS_PORT", 6379))
+class WindowsSimpleWorker(SimpleWorker):
+    death_penalty_class = TimerDeathPenalty
+
 
 redis_conn = Redis(
     host=REDIS_HOST,
-    port=REDIS_PORT
+    port=REDIS_PORT,
 )
 
 queue = Queue(
     "publisher",
-    connection=redis_conn
+    connection=redis_conn,
 )
 
-worker = Worker(
-    [queue],
-    connection=redis_conn
-)
 
 if __name__ == "__main__":
+    worker = WindowsSimpleWorker(
+        [queue],
+        connection=redis_conn,
+    )
+
     worker.work()
